@@ -281,6 +281,7 @@ function updateGhostText(editor: vscode.TextEditor, cursorPosition: vscode.Posit
   previousDecorationRange = decorationPosition;
 }
 
+
 // 명령 등록: 특정 키 조합을 눌렀을 때 인덱스 증가
 const incrementCommand = vscode.commands.registerCommand(
   "extension.incrementCompletionIndex",
@@ -311,6 +312,101 @@ context.subscriptions.push({
     }
   },
 });
+
+
+// 명령 등록: Ghost Text를 GPT에 전달하여 코드 생성
+const generateFromGhostTextCommand = vscode.commands.registerCommand(
+  "extension.generateFromGhostText",
+  async () => {
+    const editor = vscode.window.activeTextEditor;
+
+    if (!editor) {
+      vscode.window.showErrorMessage("No active editor found.");
+      return;
+    }
+
+    if (!currentGhostText) {
+      vscode.window.showWarningMessage("No Ghost Text available for GPT.");
+      return;
+    }
+
+    vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Generating code from GPT...",
+        cancellable: false,
+      },
+      async (progress) => {
+        progress.report({ message: "Sending prompt to GPT..." });
+
+        // 현재 문서의 언어 모드 확인
+        const language = editor.document.languageId; // VSCode에서 문서 언어 가져오기
+        console.log("Current language mode:", language);
+
+        // 프롬프트 생성 (언어 모드 명시)
+        const prompt = `Please generate the following code in C language:\n\n${currentGhostText}`;
+
+        const gptResponse = await generativeAIcommunication(prompt);
+
+        if (!gptResponse) {
+          vscode.window.showErrorMessage("GPT did not return a valid response.");
+          return;
+        }
+
+        progress.report({ message: "Updating Ghost Text..." });
+
+        // GPT 응답을 Ghost Text로 설정
+        currentGhostText = gptResponse.trim();
+        console.log("GPT Response for Ghost Text:", currentGhostText);
+
+        // GPT 응답을 Completion Items로 설정
+        completionItems = [{ key: currentGhostText, value: 1, sortText: "0" }];
+        console.log("Completion Items for Ghost Text:", completionItems);
+
+        // Ghost Text 업데이트
+        const cursorPosition = editor.selection.active;
+        console.log("Calling updateGhostText...");
+        updateGhostText(editor, cursorPosition);
+
+        vscode.window.showInformationMessage("GPT response displayed as Ghost Text.");
+      }
+    );
+  }
+);
+
+// 명령 등록
+context.subscriptions.push(generateFromGhostTextCommand);
+
+// 명령 등록: 특정 키를 눌렀을 때 gpt가 추천해준 Ghost Text를 삽입
+const acceptGhostTextCommand = vscode.commands.registerCommand(
+  "extension.acceptGhostText",
+  () => {
+    const editor = vscode.window.activeTextEditor;
+
+    if (!editor) {
+      vscode.window.showErrorMessage("No active editor found.");
+      return;
+    }
+
+    if (!currentGhostText) {
+      vscode.window.showWarningMessage("No Ghost Text to accept.");
+      return;
+    }
+
+    // Ghost Text 삽입 시 undefined 처리
+    editor.edit((editBuilder) => {
+      const cursorPosition = editor.selection.active;
+      editBuilder.insert(cursorPosition, currentGhostText ?? ""); // undefined일 경우 빈 문자열로 대체
+    });
+
+    // Ghost Text 초기화
+    clearGhostText();
+    vscode.window.showInformationMessage("Ghost Text inserted into editor.");
+  }
+);
+
+// 명령 등록
+context.subscriptions.push(acceptGhostTextCommand);
 
 
  // Command that starts when you press the hot key

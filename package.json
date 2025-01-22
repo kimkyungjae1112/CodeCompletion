@@ -36,8 +36,13 @@
         "when": "editorTextFocus"
       },
       {
-        "key": "ctrl+shift+g",
-        "command": "extension.requestGPTCode",
+        "key": "ctrl+alt+g",
+        "command": "extension.generateFromGhostText",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "extension.acceptGhostText",
+        "key": "alt+enter",
         "when": "editorTextFocus"
       }
       
